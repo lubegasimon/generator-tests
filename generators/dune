@@ -1,0 +1,13 @@
+(library
+ (name gen_rules_lib)
+ (modules gen_rules_lib)
+ (libraries sexplib0 unix fpath)
+ (enabled_if
+  (>= %{ocaml_version} 4.04)))
+
+(library
+ (name html_t_rule)
+ (modules html_t_rule)
+ (libraries gen_rules_lib)
+ (enabled_if
+  (>= %{ocaml_version} 4.04)))

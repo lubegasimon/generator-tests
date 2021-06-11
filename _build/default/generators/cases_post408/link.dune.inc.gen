@@ -1,0 +1,71 @@
+(rule
+ (target bugs_post_406.cmti)
+ (deps cases/bugs_post_406.mli)
+ (action
+  (run ocamlc -c -bin-annot -o %{target} %{deps})))
+
+(rule
+ (target bugs_post_406.odoc)
+ (deps bugs_post_406.cmti)
+ (action
+  (run odoc compile --pkg test -o %{target} %{deps})))
+
+(rule
+ (target bugs_post_406.odocl)
+ (deps bugs_post_406.odoc)
+ (action
+  (run odoc link -o %{target} %{deps})))
+
+(subdir
+ html
+ (rule
+  (action
+   (progn
+    (run
+     odoc
+     html-generate
+     --indent
+     -o
+     html.gen
+     %{dep:../bugs_post_406.odocl})
+    (with-stdout-to
+     Bugs_post_406.Bugs_post_406.class-let_open'.index.html.gen
+     (progn
+      (system
+       "cat 'html.gen/Bugs_post_406/Bugs_post_406/class-let_open'\\''/index.html'")))
+    (with-stdout-to
+     Bugs_post_406.Bugs_post_406.class-type-let_open.index.html.gen
+     (progn
+      (system
+       "cat 'html.gen/Bugs_post_406/Bugs_post_406/class-type-let_open/index.html'")))
+    (with-stdout-to
+     Bugs_post_406.Bugs_post_406.index.html.gen
+     (progn
+      (system "cat 'html.gen/Bugs_post_406/Bugs_post_406/index.html'")))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff
+   html/Bugs_post_406.class-let_open'.index.html
+   html/html.gen/Bugs_post_406.class-let_open'.index.html.gen))
+ (enabled_if
+  (>= %{ocaml_version} 4.08)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff
+   html/Bugs_post_406.class-type-let_open.index.html
+   html/html.gen/Bugs_post_406.class-type-let_open.index.html.gen))
+ (enabled_if
+  (>= %{ocaml_version} 4.08)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff
+   html/Bugs_post_406.index.html
+   html/html.gen/Bugs_post_406.index.html.gen))
+ (enabled_if
+  (>= %{ocaml_version} 4.08)))
