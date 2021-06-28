@@ -1,10 +1,10 @@
-# dune build
+# dune runtest
 # OCAMLPARAM: unset
 # Workspace root: /Users/simon/generator-tests
-$ /usr/bin/getconf _NPROCESSORS_ONLN > /var/folders/wb/lf02rw8d7psbhgjw8yb9q9g80000gn/T/dune8e7846.output 2> /dev/null
+$ /usr/bin/getconf _NPROCESSORS_ONLN > /var/folders/wb/lf02rw8d7psbhgjw8yb9q9g80000gn/T/dune855ffd.output 2> /dev/null
 # Auto-detected concurrency: 8
 # disable binary cache
-$ /Users/simon/.opam/default/bin/ocamlc.opt -config > /var/folders/wb/lf02rw8d7psbhgjw8yb9q9g80000gn/T/dune20cf50.output
+$ /Users/simon/.opam/default/bin/ocamlc.opt -config > /var/folders/wb/lf02rw8d7psbhgjw8yb9q9g80000gn/T/duneaebca4.output
 # Dune context:
 #  { name = "default"
 #  ; kind = "default"

@@ -1,5 +1,5 @@
 (executable
  (name gen_rules)
- (libraries gen_rules_lib html_t_rule)
+ (libraries gen_rules_lib html_t_rule latex_t_rule man_t_rule)
  (enabled_if
   (>= %{ocaml_version} 4.04)))

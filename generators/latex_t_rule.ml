@@ -1,4 +1,4 @@
-let html_target_rule path : Gen_rules_lib.sexp =
+let latex_target_rule path : Gen_rules_lib.sexp =
       List
         [
           Atom "action";
@@ -7,14 +7,13 @@ let html_target_rule path : Gen_rules_lib.sexp =
               List[
                 Atom "run";
                 Atom "odoc";
-                Atom "html-generate";
-                Atom "--indent";
+                Atom "latex-generate";
+                Atom "-o";
+                Atom ".";
                 Atom "--flat";
                 Atom "--extra-suffix";
                 Atom "gen";
-                Atom "-o";
-                Atom ".";
                 Atom ("%{dep:" ^ Fpath.to_string path ^ "}");
                ]
-        ]
+          ]
         ]

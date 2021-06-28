@@ -11,3 +11,17 @@
  (libraries gen_rules_lib)
  (enabled_if
   (>= %{ocaml_version} 4.04)))
+
+(library
+ (name latex_t_rule)
+ (modules latex_t_rule)
+ (libraries gen_rules_lib)
+ (enabled_if
+  (>= %{ocaml_version} 4.04)))
+
+(library
+ (name man_t_rule)
+ (modules man_t_rule)
+ (libraries gen_rules_lib)
+ (enabled_if
+  (>= %{ocaml_version} 4.04)))

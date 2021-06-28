@@ -135,27 +135,7 @@ let gen_rule_for_source_file path =
            "Don't know what to do with %a because of unrecognized %a extension."
            path' path ext' path)
 
-let html, latex, man = ("html", "latex", "man")
-
-let dune_inc, dune_inc_gen, gen_, exe =
-  (".dune.inc", ".dune.inc.gen", "gen_", ".exe")
-
-type backend = { subdir : Fpath.t }
-
-let html = { subdir = Fpath.v html }
-
-let backends = [ html ]
-
-let read_file_from_dir dir =
-  let filenames =
-    let arr = Sys.readdir dir in
-    Array.sort String.compare arr;
-    Array.to_list arr
-  in
-  let dir = Fpath.v dir in
-  List.map (Fpath.( / ) dir) filenames
-
-(* let dep_atom p = Atom (Printf.sprintf "%%{dep:%s}" (Fpath.to_string p)) *)
+let html, latex = Fpath. ( v "html", v "latex")
 
 let odocls backend paths =
   paths
@@ -163,68 +143,108 @@ let odocls backend paths =
          let path = Fpath.relativize ~root:backend p in
          match path with Some p -> p | None -> assert false)
 
-let tweak_target target =
-match Fpath.segs target with
-| _ :: rest -> String.concat "." rest
-| _ -> assert false
+let read_lines ic =
+  let lines = ref [] in
+  try
+    while true do
+      lines := input_line ic :: !lines
+    done;
+    assert false
+  with End_of_file -> List.rev !lines
+
+  let lines_of_file path =
+    let ic = open_in (Fpath.to_string path) in
+    let lines = read_lines ic in
+    close_in ic;
+    lines
+
+let create_targets_file f =
+  Fpath.(base f |> set_ext ".targets")
+
+let get_path_to_targets_file backend f =
+  create_targets_file f
+    |> Fpath.to_string |> Fpath.(/) backend
     
-let targets = read_file_from_dir "html"
+let expected_targets backend test_case =
+  let targets_file = get_path_to_targets_file backend test_case in
+  try
+    lines_of_file targets_file
+  with _ -> []
 
-let tweak_target' t = match Fpath.(segs (rem_ext t)) with
-| hd :: tl ->
-    let split_tail = String.split_on_char '.' (List.hd tl) in
-    let foo = (List.hd split_tail ^ "/") :: split_tail in
-    String.concat "/" (( hd ^ ".gen") :: foo) |> Fpath.v |> Fpath.set_ext ".html" (*it's not proper to move from string to fpath*)
-| [] ->  assert false
+let expected_targets' backend test_case = expected_targets backend test_case |> List.map ( fun t -> Atom (t ^ ".gen"))
 
-let filter_targets p =
-  let filename = Fpath.(rem_ext (base p)) |> Fpath.to_string |> String.capitalize_ascii in
-  List.filter (fun t -> 
+let gen_targets_file backend target_path path =
+List [
+    Atom "subdir";
+    Atom (Fpath.to_string backend);
+    List[
+      Atom "rule";
+      List[
+        Atom "action";
+        List[
+          Atom "with-outputs-to";
+          Atom (Fpath.(to_string (set_ext ".gen" target_path)));
+          List[
+            Atom "run";
+            Atom "odoc"; Atom (Fpath.to_string backend ^ "-targets"); Atom "-o"; Atom ".";
+            Atom ("%{dep:" ^ (Fpath.to_string path) ^ "}"); Atom "--flat";
+          ]
+        ]
+      ]
+    ]
+]
+  
+let target_diff_rule backend path =
+    let p = Fpath.(//) backend path in
+  List[
+  Atom "rule";
+  List[
+    Atom "alias"; Atom "runtest"
+  ];
+  List[
+    Atom "action";
+    List[
+      Atom "diff";
+      Atom (Fpath.to_string p);
+      Atom (Fpath.(to_string (p |> set_ext ".gen")))
+    ]
+  ]
+]
 
-    (* we might want to pattern match to handle empty list on split*)
-    let t'  = tweak_target  t |> String.split_on_char '.' |> List.hd in
-      t' = filename
-    ) (List.map tweak_target' targets)
+let gen_and_diff_target_files_rules backend paths =
+  List.map (fun p ->
+    let path = Fpath.relativize ~root: backend p in
+    match path with
+    | Some p -> (
+    let p' = create_targets_file p in
+    gen_targets_file backend p' p :: [target_diff_rule backend p'])
+    | None -> []
+  ) paths |> List.concat
 
-let gen_backend_diff_rule html_target_rule paths =
-  List.map
-    (fun b -> 
-        List.map (fun p -> 
-            List 
-            [
-              Atom "subdir";
-              Atom (Fpath.to_string b.subdir);
-              html_target_rule p (filter_targets p)
-            ]
-          ) (odocls b.subdir paths)
-      )
-    backends |> List.flatten
+let gen_backend_diff_rule (b_t_r, b) paths =
+          List.map (fun p ->
+            match expected_targets' b p with
+            [] -> []
+            | _ ->
+            [  List 
+              [
+                Atom "subdir";
+                Atom (Fpath.to_string b);
+                List [
+                  Atom "rule";
+                  List(
+                    Atom "targets" :: expected_targets' b p
+                  );
+                  b_t_r p 
+                ]
+              ]]
+            ) 
+            (odocls b paths) |> List.concat
+         
 
-let gen_targets targets =
-  List.map
-    (fun t ->
-      List
-        [
-          Atom "with-stdout-to";
-          Atom (tweak_target t ^ ".gen");
-          List
-            [
-              Atom "progn";
-              List
-                [
-                  Atom "system";
-                  Atom ("cat " ^ Filename.quote (Fpath.to_string t));
-                ];
-            ];
-        ])
-     targets
-
-let strip_target t = match Fpath.segs t with
-| _ :: rest -> Fpath.v (String.concat " " rest)
-| [] -> assert false
-
-let diff_rule t ocaml_ver =
-  List
+let diff_rule backend t ocaml_ver =
+  let t' = Fpath.(//) backend t in
+     List
     [
       Atom "rule";
       List [ Atom "alias"; Atom "runtest" ];
@@ -234,8 +254,8 @@ let diff_rule t ocaml_ver =
           List
             [
               Atom "diff";
-              Atom (Fpath.to_string t);
-              Atom ("html/html.gen/" ^ Fpath.to_string (strip_target t) ^ ".gen");
+              Atom (Fpath.to_string t');
+              Atom (Fpath.to_string t' ^ ".gen");
             ];
         ];
       List
@@ -245,13 +265,20 @@ let diff_rule t ocaml_ver =
         ];
     ]
 
-let diff_rules targets ocaml_ver =
-  List.map (fun t -> diff_rule t ocaml_ver) targets
+let diff_rules backend paths ocaml_ver =
+  List.map (
+    fun t -> diff_rule backend t ocaml_ver
+    )(List.(map (expected_targets backend )paths |> concat |> map Fpath.v))
 
-let gen_backend_rule html_target_rule paths ocaml_ver =
-  [ gen_backend_diff_rule html_target_rule paths; diff_rules targets ocaml_ver ] |> List.flatten
+let gen_backend_rule backend_target_rules paths ocaml_ver =
+  List.map ( fun b_t_r ->
+    let _, b = b_t_r in
+  [ (gen_backend_diff_rule b_t_r paths);
+    diff_rules b paths ocaml_ver; gen_and_diff_target_files_rules b paths 
+  ] |> List.concat
+    ) backend_target_rules |> List.flatten
 
-let gen_rule html_target_rule paths ocaml_ver =
+let gen_rule backend_target_rules paths ocaml_ver =
   let paths' =
     List.map
       (fun p ->
@@ -264,8 +291,8 @@ let gen_rule html_target_rule paths ocaml_ver =
         | None -> assert false)
       paths
   in
-  List.flatten
+  List.concat
     [
-      List.(flatten (map gen_rule_for_source_file paths));
-      gen_backend_rule html_target_rule paths' ocaml_ver;
+      List.(concat (map gen_rule_for_source_file paths));
+      gen_backend_rule backend_target_rules paths' ocaml_ver;
     ]
